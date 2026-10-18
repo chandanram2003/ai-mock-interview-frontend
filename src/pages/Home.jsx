@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -8,6 +9,9 @@ import {
   FiBarChart2,
   FiCode,
   FiMic,
+  FiMicOff,
+  FiVolume2,
+  FiVolumeX,
   FiHelpCircle,
   FiGrid,
   FiCpu,
@@ -16,10 +20,82 @@ import {
   FiChevronRight,
   FiStar,
   FiTrendingUp,
+  FiFileText,
 } from "react-icons/fi";
+import ThemeSelector from "../components/ThemeSelector";
 
 export default function Home() {
   const { user } = useAuth();
+
+  const [demoSelected, setDemoSelected] = useState("A");
+  const [demoSubmitted, setDemoSubmitted] = useState(false);
+  const [demoDifficulty, setDemoDifficulty] = useState("Medium");
+
+  const demoOptions = [
+    {
+      letter: "A",
+      text: "Fiber enables incremental rendering and diffs nodes by element type and unique keys.",
+      isCorrect: true,
+    },
+    {
+      letter: "B",
+      text: "Virtual DOM directly reloads the entire HTML page without diffing.",
+      isCorrect: false,
+    },
+    {
+      letter: "C",
+      text: "Keys are purely decorative and only needed for CSS styling animations.",
+      isCorrect: false,
+    },
+    {
+      letter: "D",
+      text: "Reconciliation only works when using external state libraries like Redux.",
+      isCorrect: false,
+    },
+  ];
+
+  const playChime = () => {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+      osc.frequency.setValueAtTime(880, ctx.currentTime + 0.08);
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.25);
+    } catch (e) {}
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (demoSubmitted) return;
+      const key = e.key.toUpperCase();
+      if (["A", "1"].includes(key)) {
+        setDemoSelected("A");
+        playChime();
+      } else if (["B", "2"].includes(key)) {
+        setDemoSelected("B");
+        playChime();
+      } else if (["C", "3"].includes(key)) {
+        setDemoSelected("C");
+        playChime();
+      } else if (["D", "4"].includes(key)) {
+        setDemoSelected("D");
+        playChime();
+      } else if (e.key === "Enter") {
+        setDemoSubmitted(true);
+        playChime();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [demoSubmitted]);
 
   const features = [
     {
@@ -29,16 +105,16 @@ export default function Home() {
         "Dynamic questions tuned precisely to your selected role, tech stack, and experience level just like top tech hiring bars.",
     },
     {
-      icon: <FiHelpCircle className="w-6 h-6 text-purple-400" />,
-      title: "Smart 4-Option Assistance",
+      icon: <FiCheckCircle className="w-6 h-6 text-indigo-400" />,
+      title: "Skill Practice Tests (Easy, Medium, Hard)",
       description:
-        "Stuck during the interview? Toggle the 4-Option helper to see AI-crafted hints and structured answer avenues.",
+        "Select your difficulty (Easy, Medium, or Hard) and take clean multiple-choice tests with 4 options per question. Zero voice, pure test focus.",
     },
     {
-      icon: <FiMic className="w-6 h-6 text-sky-400" />,
-      title: "Voice & Speech Recognition",
+      icon: <FiFileText className="w-6 h-6 text-purple-400" />,
+      title: "Autonomous Resume AI Mock Interview",
       description:
-        "Practice speaking out loud naturally with built-in browser speech recognition to simulate high-pressure live video rounds.",
+        "Simply upload your resume. AI scans your projects, graduation, and tech stack to calibrate questions dynamically, with 100% spoken voice answers.",
     },
     {
       icon: <FiBarChart2 className="w-6 h-6 text-emerald-400" />,
@@ -63,13 +139,13 @@ export default function Home() {
   const steps = [
     {
       step: "01",
-      title: "Configure Your Session",
-      desc: "Pick your target job role (Frontend, Backend, Fullstack, AI), select your core technologies, and set your experience level.",
+      title: "Choose Your Format",
+      desc: "Pick a Skill Practice Test with Easy, Medium, or Hard levels, or upload your resume for an automated AI mock interview.",
     },
     {
       step: "02",
-      title: "Take The AI Mock Round",
-      desc: "Answer sequential technical questions via text or voice. Leverage the 4-Option mode whenever you need conceptual direction.",
+      title: "Take The Test or Mock Interview",
+      desc: "Solve option-based practice tests without voice interruption, or speak your answers into the microphone for your resume round.",
     },
     {
       step: "03",
@@ -92,7 +168,7 @@ export default function Home() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen bg-transparent text-slate-100 flex flex-col selection:bg-indigo-500 selection:text-white">
       {/* Background Ambient Glows */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-indigo-600/15 rounded-full blur-[130px]" />
@@ -140,7 +216,9 @@ export default function Home() {
           </nav>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <ThemeSelector />
+
             {user ? (
               <Link
                 to="/dashboard"
@@ -225,72 +303,178 @@ export default function Home() {
               <div className="text-xs sm:text-sm text-slate-400 mt-1">Score & Analysis</div>
             </div>
             <div>
-              <div className="text-2xl sm:text-3xl font-extrabold text-emerald-400">Speech</div>
-              <div className="text-xs sm:text-sm text-slate-400 mt-1">Voice Recognition</div>
+              <div className="text-2xl sm:text-3xl font-extrabold text-emerald-400">Easy/Med/Hard</div>
+              <div className="text-xs sm:text-sm text-slate-400 mt-1">Difficulty Testing</div>
             </div>
           </div>
 
-          {/* Interactive UI Mockup Preview */}
-          <div className="mt-16 max-w-5xl mx-auto rounded-2xl glass-panel p-2 sm:p-4 border border-slate-800 shadow-2xl relative">
-            <div className="rounded-xl bg-slate-900/90 border border-slate-800/90 p-5 sm:p-8 text-left">
-              {/* Fake Interview Window Header */}
+          {/* Live Interactive MCQ Practice Test Mockup Preview */}
+          <div className="mt-16 max-w-5xl mx-auto rounded-3xl glass-panel p-2 sm:p-4 border border-slate-800 shadow-2xl relative">
+            <div className="rounded-2xl bg-slate-900/90 border border-slate-800/90 p-5 sm:p-8 text-left space-y-6">
+              {/* Interview Window Header */}
               <div className="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-slate-800">
                 <div className="flex items-center gap-3">
                   <div className="w-3 h-3 rounded-full bg-rose-500" />
                   <div className="w-3 h-3 rounded-full bg-amber-500" />
                   <div className="w-3 h-3 rounded-full bg-emerald-500" />
                   <span className="ml-2 text-xs font-mono text-slate-400">
-                    Live Session: Full Stack React & Node.js • Junior/Mid
+                    Live Demo: Full Stack React & Node.js • Skill Practice Test
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-semibold flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    AI Interviewer Active
+                  {/* Selectable Difficulty Badges for Test */}
+                  <div className="flex items-center bg-slate-950/80 p-1 rounded-xl border border-slate-800 gap-1 text-[11px] font-semibold">
+                    {["Easy", "Medium", "Hard"].map((lvl) => (
+                      <button
+                        key={lvl}
+                        type="button"
+                        onClick={() => setDemoDifficulty(lvl)}
+                        className={`px-2.5 py-0.5 rounded-lg transition-all ${
+                          demoDifficulty === lvl
+                            ? lvl === "Easy"
+                              ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                              : lvl === "Hard"
+                              ? "bg-rose-500/20 text-rose-300 border border-rose-500/40"
+                              : "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                            : "text-slate-400 hover:text-slate-200"
+                        }`}
+                      >
+                        {lvl}
+                      </button>
+                    ))}
+                  </div>
+                  <span className="px-2.5 py-1 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-xs font-semibold flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-indigo-400" />
+                    Option-Only Mode
                   </span>
                 </div>
               </div>
 
               {/* Sample AI Question */}
-              <div className="mt-6">
-                <div className="flex items-center gap-2 text-xs font-semibold text-indigo-400 uppercase tracking-wider">
-                  <FiAward className="w-4 h-4" /> Question 2 of 5
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-indigo-400 uppercase tracking-wider">
+                    <FiAward className="w-4 h-4" /> Question 2 of 5 • Multiple Choice ({demoDifficulty})
+                  </div>
+                  <span className="text-[11px] text-slate-400 font-mono bg-slate-800/80 px-2.5 py-0.5 rounded-lg border border-slate-700">
+                    Press Keys 1-4 or A-D
+                  </span>
                 </div>
-                <h3 className="text-lg sm:text-xl font-bold text-white mt-2 leading-relaxed">
+
+                <h3 className="text-lg sm:text-xl font-bold text-white leading-relaxed">
                   "Explain how React’s reconciliation algorithm (Fiber) handles updates between the
                   Virtual DOM and the real DOM, and why keys are crucial in lists?"
                 </h3>
               </div>
 
-              {/* Sample 4-Option Mode Preview */}
-              <div className="mt-5 p-4 rounded-xl bg-slate-950/70 border border-indigo-500/20">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
-                    <FiHelpCircle className="w-3.5 h-3.5" /> AI 4-Option Conceptual Assistance Mode
-                  </span>
-                  <span className="text-[11px] text-slate-400">Hint Activated</span>
+              {/* Interactive 4 Options */}
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between text-xs text-slate-400 font-semibold px-1">
+                  <span>SELECT ONE OPTION (CLICK OR PRESS KEY A / B / C / D)</span>
+                  {demoSelected && <span className="text-indigo-400">Option {demoSelected} Selected</span>}
                 </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <div className="p-3 rounded-lg bg-indigo-600/20 border border-indigo-500/40 text-xs text-indigo-100 flex items-start gap-2">
-                    <span className="font-bold text-indigo-400">A.</span>
-                    <span>Fiber enables incremental rendering and diffs nodes by element type and unique keys.</span>
-                  </div>
-                  <div className="p-3 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-400 flex items-start gap-2">
-                    <span className="font-bold text-slate-500">B.</span>
-                    <span>Virtual DOM directly reloads the entire HTML page without diffing.</span>
-                  </div>
+                  {demoOptions.map((opt) => {
+                    const isSelected = demoSelected === opt.letter;
+                    let optClass = "bg-slate-950/70 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-900";
+                    let badgeClass = "bg-slate-800 text-slate-400 border-slate-700";
+
+                    if (demoSubmitted) {
+                      if (opt.isCorrect) {
+                        optClass = "bg-emerald-950/40 border-emerald-500/70 text-emerald-100 shadow-glow-emerald";
+                        badgeClass = "bg-emerald-600 text-white border-emerald-500";
+                      } else if (isSelected && !opt.isCorrect) {
+                        optClass = "bg-rose-950/40 border-rose-500/70 text-rose-100 shadow-glow-rose";
+                        badgeClass = "bg-rose-600 text-white border-rose-500";
+                      } else {
+                        optClass = "bg-slate-950/30 border-slate-800/40 text-slate-600 opacity-50";
+                        badgeClass = "bg-slate-900 text-slate-600 border-slate-800";
+                      }
+                    } else if (isSelected) {
+                      optClass = "bg-indigo-950/40 border-indigo-500 text-white shadow-glow-indigo ring-1 ring-indigo-500";
+                      badgeClass = "bg-indigo-600 text-white border-indigo-400";
+                    }
+
+                    return (
+                      <button
+                        key={opt.letter}
+                        type="button"
+                        onClick={() => {
+                          setDemoSelected(opt.letter);
+                          playChime();
+                        }}
+                        className={`p-3.5 rounded-xl border text-left transition-all flex items-start gap-3 ${optClass}`}
+                      >
+                        <span className={`w-7 h-7 rounded-lg border flex items-center justify-center font-bold text-xs shrink-0 ${badgeClass}`}>
+                          {opt.letter}
+                        </span>
+                        <span className="text-xs leading-relaxed pt-1 flex-1 font-medium">
+                          {opt.text}
+                        </span>
+                        {demoSubmitted && opt.isCorrect && (
+                          <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/20 px-1.5 py-0.5 rounded shrink-0">
+                            Correct ✓
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Sample AI Evaluation Score */}
-              <div className="mt-5 flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-800/80 text-xs">
-                <div className="flex items-center gap-2 text-slate-400">
-                  <FiTrendingUp className="w-4 h-4 text-emerald-400" />
-                  <span>AI Score: <strong className="text-emerald-400 text-sm">94/100</strong> (Excellent Technical Accuracy)</span>
-                </div>
-                <span className="text-indigo-400 font-medium">
-                  Detailed breakdown generated automatically →
-                </span>
+              {/* Action & AI Evaluation Score */}
+              <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-slate-800/80">
+                {!demoSubmitted ? (
+                  <>
+                    <div className="flex items-center gap-2 text-xs text-slate-400">
+                      <FiTrendingUp className="w-4 h-4 text-indigo-400" />
+                      <span>Select option and click submit or press <strong>Enter</strong> to test!</span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDemoSubmitted(true);
+                        playChime();
+                      }}
+                      className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 transition-all flex items-center gap-1.5"
+                    >
+                      <span>Submit Option {demoSelected}</span>
+                      <FiArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-bold text-sm">
+                        ✓
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-white">AI Score: 94/100</span>
+                          <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md">
+                            Full Mastery
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          Excellent answer! Fiber reconciler batches updates and keys preserve DOM node identity.
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDemoSubmitted(false);
+                        setDemoSelected("A");
+                      }}
+                      className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-all"
+                    >
+                      Try Again (Reset)
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>

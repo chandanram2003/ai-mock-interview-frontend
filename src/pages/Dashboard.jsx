@@ -19,6 +19,9 @@ import {
   FiCpu,
   FiMic,
   FiHelpCircle,
+  FiFileText,
+  FiUploadCloud,
+  FiX,
 } from "react-icons/fi";
 
 const ROLE_OPTIONS = [
@@ -61,7 +64,7 @@ export default function Dashboard() {
   const [customRole, setCustomRole] = useState("");
   const [difficulty, setDifficulty] = useState("Medium");
   const [questionCount, setQuestionCount] = useState(10);
-  const [mode, setMode] = useState("hybrid");
+  const [mode, setMode] = useState("open-ended");
   const [starting, setStarting] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -79,6 +82,45 @@ export default function Dashboard() {
     setLoading(false);
   };
 
+  const [launchType, setLaunchType] = useState("role"); // "role" | "resume"
+  const [resumeFile, setResumeFile] = useState(null);
+  const [resumeDragOver, setResumeDragOver] = useState(false);
+  const [resumeError, setResumeError] = useState("");
+
+  const validateAndSetResume = (file) => {
+    setResumeError("");
+    if (!file) return;
+
+    const allowed = [".pdf", ".docx", ".doc"];
+    const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+    if (!allowed.includes(ext)) {
+      setResumeError("Please upload a PDF (.pdf) or Word document (.docx).");
+      setResumeFile(null);
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setResumeError("File size exceeds 10MB limit. Please upload a smaller resume.");
+      setResumeFile(null);
+      return;
+    }
+
+    setResumeFile(file);
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files && e.target.files[0];
+    validateAndSetResume(file);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setResumeDragOver(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      validateAndSetResume(e.dataTransfer.files[0]);
+    }
+  };
+
   const startInterview = async () => {
     const finalRole = customRole.trim() ? customRole.trim() : role;
     if (!finalRole) {
@@ -92,11 +134,34 @@ export default function Dashboard() {
         role: finalRole,
         difficulty,
         questionCount,
-        mode,
+        mode: "mcq", // Standard skill practice test mode (no voice)
       });
       navigate(`/interview/${data._id}`);
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to start interview");
+      alert(err.response?.data?.message || "Failed to start practice test");
+      setStarting(false);
+    }
+  };
+
+  const startResumeInterview = async () => {
+    if (!resumeFile) {
+      alert("Please upload your resume in PDF (.pdf) or Word (.docx) format.");
+      return;
+    }
+
+    setStarting(true);
+    try {
+      const formData = new FormData();
+      formData.append("resume", resumeFile);
+      formData.append("questionCount", questionCount);
+      formData.append("mode", "open-ended"); // Conversational spoken mock interview
+
+      const { data } = await API.post("/interview/start-resume", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      navigate(`/interview/${data._id}`);
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to start resume-based interview");
       setStarting(false);
     }
   };
@@ -130,7 +195,7 @@ export default function Dashboard() {
       : 0;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen bg-transparent text-slate-100 flex flex-col selection:bg-indigo-500 selection:text-white">
       <Navbar />
 
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
@@ -189,158 +254,429 @@ export default function Dashboard() {
 
         {/* Start Interview Cockpit */}
         <section className="glass-panel p-6 sm:p-8 rounded-3xl border border-slate-800 shadow-xl space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h2 className="text-xl font-bold text-white flex items-center gap-2">
                 <FiPlay className="w-5 h-5 text-indigo-400" />
                 Launch New AI Mock Interview
               </h2>
               <p className="text-xs text-slate-400 mt-1">
-                Choose your desired role, difficulty, and question length to generate customized 4-option questions.
+                Choose a standardized tech role or upload your resume for a custom-tailored interview.
               </p>
             </div>
           </div>
 
-          {/* 1. Role Selection Grid */}
-          <div className="space-y-3">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Step 1: Select Target Role
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-              {ROLE_OPTIONS.map((item) => {
-                const Icon = item.icon;
-                const isSelected = role === item.name && !customRole;
-                return (
-                  <button
-                    key={item.name}
-                    type="button"
-                    onClick={() => {
-                      setRole(item.name);
-                      setCustomRole("");
-                    }}
-                    className={`p-4 rounded-2xl border text-left transition-all duration-200 flex flex-col justify-between gap-3 group relative ${
-                      isSelected
-                        ? "bg-indigo-950/40 border-indigo-500 shadow-glow-indigo ring-1 ring-indigo-500"
-                        : "bg-slate-900/60 border-slate-800 hover:border-slate-700 hover:bg-slate-900"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className={`p-2.5 rounded-xl bg-gradient-to-br border ${item.color}`}>
-                        <Icon className="w-5 h-5" />
-                      </div>
-                      {isSelected && (
-                        <div className="w-2 h-2 rounded-full bg-indigo-400 shadow-glow-indigo" />
-                      )}
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-bold text-white group-hover:text-indigo-300 transition-colors">
-                        {item.name}
-                      </h3>
-                      <p className="text-[11px] text-slate-400 mt-1 line-clamp-2 leading-relaxed">
-                        {item.description}
-                      </p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Custom Role Input */}
-            <div className="pt-2">
-              <input
-                type="text"
-                placeholder="Or type a custom role (e.g., DevOps Engineer, React Native Developer, Python Lead)..."
-                value={customRole}
-                onChange={(e) => setCustomRole(e.target.value)}
-                className="w-full glass-input text-xs sm:text-sm p-3 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-              />
-            </div>
-          </div>
-
-          {/* 2. Difficulty & Question Count */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
-            {/* Difficulty */}
-            <div className="space-y-2.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                Step 2: Difficulty Level
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { name: "Easy", desc: "Foundational", color: "hover:border-emerald-500/50" },
-                  { name: "Medium", desc: "Core Standard", color: "hover:border-amber-500/50" },
-                  { name: "Hard", desc: "Advanced Nuances", color: "hover:border-rose-500/50" },
-                ].map((d) => (
-                  <button
-                    key={d.name}
-                    type="button"
-                    onClick={() => setDifficulty(d.name)}
-                    className={`py-3 px-2 rounded-xl text-center border text-xs font-bold transition-all ${
-                      difficulty === d.name
-                        ? d.name === "Easy"
-                          ? "bg-emerald-500/20 text-emerald-300 border-emerald-500 shadow-glow-emerald"
-                          : d.name === "Hard"
-                          ? "bg-rose-500/20 text-rose-300 border-rose-500 shadow-glow-rose"
-                          : "bg-amber-500/20 text-amber-300 border-amber-500"
-                        : `bg-slate-900/60 text-slate-400 border-slate-800 ${d.color}`
-                    }`}
-                  >
-                    <div>{d.name}</div>
-                    <div className="text-[10px] font-normal opacity-70 mt-0.5">{d.desc}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Question Count */}
-            <div className="space-y-2.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                Step 3: Question Count
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { count: 5, label: "5 Questions", time: "~5 Mins" },
-                  { count: 10, label: "10 Questions", time: "~12 Mins" },
-                  { count: 15, label: "15 Questions", time: "~20 Mins" },
-                ].map((item) => (
-                  <button
-                    key={item.count}
-                    type="button"
-                    onClick={() => setQuestionCount(item.count)}
-                    className={`py-3 px-2 rounded-xl text-center border text-xs font-bold transition-all ${
-                      questionCount === item.count
-                        ? "bg-indigo-600/30 text-indigo-300 border-indigo-500 shadow-glow-indigo"
-                        : "bg-slate-900/60 text-slate-400 border-slate-800 hover:border-slate-700"
-                    }`}
-                  >
-                    <div>{item.label}</div>
-                    <div className="text-[10px] font-normal opacity-70 mt-0.5">{item.time}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Start CTA Button */}
-          <div className="pt-2">
+          {/* Mode Switcher: Role-Based vs Resume-Based */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-1.5 rounded-2xl bg-slate-900/90 border border-slate-800">
             <button
-              onClick={startInterview}
-              disabled={starting}
-              className="w-full py-4 px-6 rounded-2xl font-bold text-base text-white bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-xl shadow-indigo-500/25 transition-all transform hover:-translate-y-0.5 active:scale-[0.99] flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+              type="button"
+              onClick={() => setLaunchType("role")}
+              className={`p-3.5 rounded-xl text-left transition-all flex items-center gap-3 border ${
+                launchType === "role"
+                  ? "bg-indigo-600/20 border-indigo-500/50 text-white shadow-glow-indigo"
+                  : "bg-transparent border-transparent text-slate-400 hover:text-slate-200"
+              }`}
             >
-              {starting ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>AI generating questions with 4 options...</span>
-                </>
-              ) : (
-                <>
-                  <FiZap className="w-5 h-5" />
-                  <span>Start Mock Interview ({customRole || role} • {difficulty} • {questionCount} Qs)</span>
-                  <FiArrowRight className="w-5 h-5" />
-                </>
-              )}
+              <div
+                className={`p-2 rounded-lg ${
+                  launchType === "role"
+                    ? "bg-indigo-600 text-white"
+                    : "bg-slate-800 text-slate-400"
+                }`}
+              >
+                <FiZap className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-xs sm:text-sm font-bold">📝 Skill Practice Test (MCQ)</h3>
+                <p className="text-[11px] text-slate-400">Standard multiple-choice test with Easy, Medium, or Hard levels</p>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setLaunchType("resume")}
+              className={`p-3.5 rounded-xl text-left transition-all flex items-center gap-3 border relative ${
+                launchType === "resume"
+                  ? "bg-purple-600/20 border-purple-500/50 text-white shadow-glow-indigo"
+                  : "bg-transparent border-transparent text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              <span className="absolute top-2 right-2 text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-sm">
+                VOICE AI
+              </span>
+              <div
+                className={`p-2 rounded-lg ${
+                  launchType === "resume"
+                    ? "bg-purple-600 text-white"
+                    : "bg-slate-800 text-slate-400"
+                }`}
+              >
+                <FiMic className="w-4 h-4 text-purple-200" />
+              </div>
+              <div>
+                <h3 className="text-xs sm:text-sm font-bold">🎙️ Resume AI Mock Interview</h3>
+                <p className="text-[11px] text-slate-400">Upload PDF/DOCX — AI automatically analyzes depth & asks spoken questions</p>
+              </div>
             </button>
           </div>
+
+          {/* 1. Step 1: Either Role Grid OR Resume Upload Box */}
+          {launchType === "resume" ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  Step 1: Upload Your Resume (PDF or DOCX)
+                </label>
+                <span className="text-[11px] text-purple-400 font-medium">
+                  ⚡ Auto-Skill Extraction • Zero Manual Picking
+                </span>
+              </div>
+
+              {!resumeFile ? (
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setResumeDragOver(true);
+                  }}
+                  onDragLeave={() => setResumeDragOver(false)}
+                  onDrop={handleDrop}
+                  onClick={() => document.getElementById("resume-file-input")?.click()}
+                  className={`border-2 border-dashed rounded-2xl p-8 sm:p-10 text-center transition-all cursor-pointer ${
+                    resumeDragOver
+                      ? "border-purple-500 bg-purple-500/10 scale-[1.01]"
+                      : "border-slate-800 hover:border-slate-700 bg-slate-900/50 hover:bg-slate-900/80"
+                  }`}
+                >
+                  <input
+                    id="resume-file-input"
+                    type="file"
+                    accept=".pdf,.docx,.doc"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+                  <div className="w-14 h-14 rounded-2xl bg-purple-500/10 text-purple-400 border border-purple-500/20 flex items-center justify-center mx-auto mb-3">
+                    <FiUploadCloud className="w-7 h-7" />
+                  </div>
+                  <h4 className="text-sm font-bold text-white">
+                    Drag and drop your resume here, or <span className="text-purple-400 hover:underline">browse file</span>
+                  </h4>
+                  <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto leading-relaxed">
+                    Accepted formats: <strong>PDF (.pdf)</strong> or <strong>Word (.docx)</strong> up to 10MB.
+                  </p>
+                  <div className="mt-3.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800/80 border border-slate-700 text-[11px] text-slate-300">
+                    <span>✨ AI will automatically extract your technologies, frameworks & projects</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 sm:p-5 rounded-2xl bg-purple-950/20 border border-purple-500/30 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <div className="w-12 h-12 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30 flex items-center justify-center shrink-0">
+                      <FiFileText className="w-6 h-6" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-bold text-white truncate max-w-xs sm:max-w-md">
+                          {resumeFile.name}
+                        </h4>
+                        <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full shrink-0">
+                          Ready ✓
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        {(resumeFile.size / 1024).toFixed(1)} KB • AI will extract your skills & projects
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setResumeFile(null)}
+                    className="p-2 rounded-xl bg-slate-800 hover:bg-rose-500/20 hover:text-rose-400 text-slate-400 border border-slate-700 transition-colors shrink-0"
+                    title="Remove file"
+                  >
+                    <FiX className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
+              {resumeError && (
+                <p className="text-xs text-rose-400 font-semibold">{resumeError}</p>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                Step 1: Select Target Role
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                {ROLE_OPTIONS.map((item) => {
+                  const Icon = item.icon;
+                  const isSelected = role === item.name && !customRole;
+                  return (
+                    <button
+                      key={item.name}
+                      type="button"
+                      onClick={() => {
+                        setRole(item.name);
+                        setCustomRole("");
+                      }}
+                      className={`p-4 rounded-2xl border text-left transition-all duration-200 flex flex-col justify-between gap-3 group relative ${
+                        isSelected
+                          ? "bg-indigo-950/40 border-indigo-500 shadow-glow-indigo ring-1 ring-indigo-500"
+                          : "bg-slate-900/60 border-slate-800 hover:border-slate-700 hover:bg-slate-900"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className={`p-2.5 rounded-xl bg-gradient-to-br border ${item.color}`}>
+                          <Icon className="w-5 h-5" />
+                        </div>
+                        {isSelected && (
+                          <div className="w-2 h-2 rounded-full bg-indigo-400 shadow-glow-indigo" />
+                        )}
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-white group-hover:text-indigo-300 transition-colors">
+                          {item.name}
+                        </h3>
+                        <p className="text-[11px] text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                          {item.description}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Custom Role Input */}
+              <div className="pt-2">
+                <input
+                  type="text"
+                  placeholder="Or type a custom role (e.g., DevOps Engineer, React Native Developer, Python Lead)..."
+                  value={customRole}
+                  onChange={(e) => setCustomRole(e.target.value)}
+                  className="w-full glass-input text-xs sm:text-sm p-3 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Dynamic Configuration Controls: Resume vs Role Practice Test */}
+          {launchType === "resume" ? (
+            /* RESUME INTERVIEW CONFIG: NO DIFFICULTY SELECTION (AI AUTONOMOUSLY ANALYZES RESUME) */
+            <div className="space-y-5 pt-2">
+              {/* Question Count Selection */}
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Step 2: Number of Interview Questions
+                  </label>
+                  <span className="text-[11px] text-purple-400 font-medium">
+                    ⚡ 5 Questions Recommended for Spoken Rounds
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { count: 5, label: "5 Questions", time: "~5-8 Mins (Standard HR & Tech)" },
+                    { count: 10, label: "10 Questions", time: "~15 Mins (Comprehensive Round)" },
+                    { count: 15, label: "15 Questions", time: "~25 Mins (Deep Dive In-Depth)" },
+                  ].map((item) => (
+                    <button
+                      key={item.count}
+                      type="button"
+                      onClick={() => setQuestionCount(item.count)}
+                      className={`py-3.5 px-3 rounded-2xl text-center border text-xs font-bold transition-all ${
+                        questionCount === item.count
+                          ? "bg-purple-950/40 text-purple-200 border-purple-500 shadow-glow-indigo ring-1 ring-purple-500"
+                          : "bg-slate-900/60 text-slate-400 border-slate-800 hover:border-slate-700 hover:bg-slate-900"
+                      }`}
+                    >
+                      <div className="text-sm font-black text-white">{item.label}</div>
+                      <div className="text-[10px] font-normal text-purple-300/80 mt-1">{item.time}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* AI Auto-Calibration Intelligence Card (Explaining zero manual difficulty) */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-purple-950/30 via-slate-900 to-indigo-950/30 border border-purple-500/30 flex items-start gap-3.5">
+                <div className="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center justify-center shrink-0 mt-0.5">
+                  <FiCpu className="w-5 h-5 text-purple-400" />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-xs sm:text-sm font-bold text-white">
+                      Autonomous AI Seniority & Depth Calibration
+                    </h4>
+                    <span className="text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      Auto-Adaptive
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    You do not need to manually pick Easy, Medium, or Hard. The AI analyzes your graduation year, project complexities, and tech stack from your resume, then automatically asks questions tailored to your true experience level!
+                  </p>
+                </div>
+              </div>
+
+              {/* 100% Voice Interview Assistant Badge */}
+              <div className="p-4 rounded-2xl bg-indigo-950/30 border border-indigo-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center shrink-0">
+                    <FiMic className="w-5 h-5 text-sky-400" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-bold text-white">100% Spoken Mock Interview Ready</h3>
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                        Voice Only
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      AI begins with an HR warm greeting & self-introduction. You speak answers directly via microphone with live soundwaves & speech-to-text.
+                    </p>
+                  </div>
+                </div>
+                <div className="text-xs text-sky-300 font-semibold bg-slate-900/80 px-3 py-1.5 rounded-xl border border-slate-800 self-start sm:self-center shrink-0">
+                  🎙️ Spoken Answering Station
+                </div>
+              </div>
+
+              {/* Resume Start CTA Button */}
+              <div className="pt-2">
+                <button
+                  onClick={startResumeInterview}
+                  disabled={starting || !resumeFile}
+                  className="w-full py-4 px-6 rounded-2xl font-bold text-base text-white bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 hover:from-purple-500 hover:to-indigo-500 shadow-xl shadow-purple-500/25 transition-all transform hover:-translate-y-0.5 active:scale-[0.99] flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {starting ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>AI analyzing resume, seniority & formulating HR questions...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FiMic className="w-5 h-5" />
+                      <span>
+                        Start Resume Mock Interview (Spoken Round • {questionCount} Questions)
+                      </span>
+                      <FiArrowRight className="w-5 h-5" />
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* ROLE PRACTICE TEST CONFIG: DIFFICULTY & QUESTIONS KEPT, VOICE REMOVED (PURE TEST OPTIONS) */
+            <div className="space-y-5 pt-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Step 2: Difficulty Level */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                      Step 2: Difficulty Level
+                    </label>
+                    <span className="text-[11px] text-indigo-400 font-medium">
+                      Select for Test
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { name: "Easy", desc: "Foundational", color: "hover:border-emerald-500/50" },
+                      { name: "Medium", desc: "Core Standard", color: "hover:border-amber-500/50" },
+                      { name: "Hard", desc: "Advanced Nuances", color: "hover:border-rose-500/50" },
+                    ].map((d) => (
+                      <button
+                        key={d.name}
+                        type="button"
+                        onClick={() => setDifficulty(d.name)}
+                        className={`py-3 px-2 rounded-xl text-center border text-xs font-bold transition-all ${
+                          difficulty === d.name
+                            ? d.name === "Easy"
+                              ? "bg-emerald-500/20 text-emerald-300 border-emerald-500 shadow-glow-emerald"
+                              : d.name === "Hard"
+                              ? "bg-rose-500/20 text-rose-300 border-rose-500 shadow-glow-rose"
+                              : "bg-amber-500/20 text-amber-300 border-amber-500"
+                            : `bg-slate-900/60 text-slate-400 border-slate-800 ${d.color}`
+                        }`}
+                      >
+                        <div>{d.name}</div>
+                        <div className="text-[10px] font-normal opacity-70 mt-0.5">{d.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Step 3: Question Count */}
+                <div className="space-y-2.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Step 3: Question Count
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { count: 5, label: "5 Questions", time: "~5 Mins" },
+                      { count: 10, label: "10 Questions", time: "~10 Mins" },
+                      { count: 15, label: "15 Questions", time: "~15 Mins" },
+                    ].map((item) => (
+                      <button
+                        key={item.count}
+                        type="button"
+                        onClick={() => setQuestionCount(item.count)}
+                        className={`py-3 px-2 rounded-xl text-center border text-xs font-bold transition-all ${
+                          questionCount === item.count
+                            ? "bg-indigo-600/30 text-indigo-300 border-indigo-500 shadow-glow-indigo"
+                            : "bg-slate-900/60 text-slate-400 border-slate-800 hover:border-slate-700"
+                        }`}
+                      >
+                        <div>{item.label}</div>
+                        <div className="text-[10px] font-normal opacity-70 mt-0.5">{item.time}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Pure Multiple-Choice Test Format Notice (Voice Removed) */}
+              <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center justify-center shrink-0">
+                    <span className="text-lg">📝</span>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">Pure Multiple Choice Test (MCQ)</h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Each question features 4 clear options (A, B, C, D). No microphone or voice interference — quiet, fast, focused test practice.
+                    </p>
+                  </div>
+                </div>
+                <span className="text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-xl shrink-0">
+                  Option-Only Mode
+                </span>
+              </div>
+
+              {/* Practice Test Start CTA Button */}
+              <div className="pt-2">
+                <button
+                  onClick={startInterview}
+                  disabled={starting}
+                  className="w-full py-4 px-6 rounded-2xl font-bold text-base text-white bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-xl shadow-indigo-500/25 transition-all transform hover:-translate-y-0.5 active:scale-[0.99] flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {starting ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Generating multiple-choice practice test questions...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FiZap className="w-5 h-5" />
+                      <span>
+                        Start Practice Test ({customRole || role} • {difficulty} • {questionCount} Questions)
+                      </span>
+                      <FiArrowRight className="w-5 h-5" />
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
         </section>
 
         {/* Past Interviews List */}
@@ -379,7 +715,7 @@ export default function Dashboard() {
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="font-bold text-base text-white group-hover:text-indigo-300 transition-colors">
                             {i.role}
                           </h3>
@@ -394,6 +730,11 @@ export default function Dashboard() {
                           >
                             {i.difficulty}
                           </span>
+                          {i.isResumeBased && (
+                            <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20 flex items-center gap-1">
+                              <FiFileText className="w-2.5 h-2.5" /> Resume Tailored
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs text-slate-400 mt-1 flex items-center gap-2">
                           <span>{new Date(i.createdAt).toLocaleDateString(undefined, {

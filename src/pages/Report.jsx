@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import API from "../api/axios";
 import Loading from "../components/Loading";
@@ -11,12 +11,61 @@ import {
   FiPrinter,
   FiRotateCcw,
   FiCheck,
+  FiVolume2,
+  FiVolumeX,
+  FiFileText,
+  FiUser,
 } from "react-icons/fi";
+import ThemeSelector from "../components/ThemeSelector";
 
 export default function Report() {
   const { id } = useParams();
   const [interview, setInterview] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const synthRef = useRef(typeof window !== "undefined" ? window.speechSynthesis : null);
+
+  useEffect(() => {
+    return () => {
+      if (synthRef.current) synthRef.current.cancel();
+    };
+  }, []);
+
+  const toggleReportSpeech = (text) => {
+    if (!synthRef.current) return;
+    if (isSpeaking) {
+      synthRef.current.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+
+    synthRef.current.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+
+    const voices = synthRef.current.getVoices ? synthRef.current.getVoices() : [];
+    const preferredVoice =
+      voices.find(
+        (v) =>
+          v.lang.startsWith("en") &&
+          (v.name.includes("Google") ||
+            v.name.includes("Natural") ||
+            v.name.includes("Samantha") ||
+            v.name.includes("Daniel") ||
+            v.name.includes("Jenny"))
+      ) ||
+      voices.find((v) => v.lang.startsWith("en-US")) ||
+      voices.find((v) => v.lang.startsWith("en"));
+
+    if (preferredVoice) utterance.voice = preferredVoice;
+
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+
+    setIsSpeaking(true);
+    synthRef.current.speak(utterance);
+  };
 
   useEffect(() => {
     fetchReport();
@@ -71,7 +120,7 @@ export default function Report() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-6 lg:p-10 selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen bg-transparent text-slate-100 p-4 sm:p-6 lg:p-10 selection:bg-indigo-500 selection:text-white">
       <div className="max-w-4xl mx-auto space-y-8">
         {/* Top Header Actions */}
         <div className="flex items-center justify-between gap-4">
@@ -83,13 +132,17 @@ export default function Report() {
             <span>Dashboard</span>
           </Link>
 
-          <button
-            onClick={handlePrint}
-            className="inline-flex items-center gap-2 text-xs font-bold text-slate-300 hover:text-white transition-colors bg-slate-900/80 border border-slate-800 px-3.5 py-2 rounded-xl hover:bg-slate-800"
-          >
-            <FiPrinter className="w-4 h-4 text-indigo-400" />
-            <span>Save / Print Report</span>
-          </button>
+          <div className="flex items-center gap-2.5">
+            <ThemeSelector />
+
+            <button
+              onClick={handlePrint}
+              className="inline-flex items-center gap-2 text-xs font-bold text-slate-300 hover:text-white transition-colors bg-slate-900/80 border border-slate-800 px-3.5 py-2 rounded-xl hover:bg-slate-800"
+            >
+              <FiPrinter className="w-4 h-4 text-indigo-400" />
+              <span>Save / Print Report</span>
+            </button>
+          </div>
         </div>
 
         {/* Executive Score Card */}
@@ -99,21 +152,46 @@ export default function Report() {
 
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
             <div className="space-y-3">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-xs font-bold text-indigo-400">
-                <FiAward className="w-3.5 h-3.5" />
-                <span>Executive Assessment Summary</span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-xs font-bold text-indigo-400">
+                  <FiAward className="w-3.5 h-3.5" />
+                  <span>Executive Assessment Summary</span>
+                </div>
+                {interview.isResumeBased && (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/15 border border-purple-500/30 text-xs font-bold text-purple-300">
+                    <FiFileText className="w-3.5 h-3.5" />
+                    <span>Resume-Tailored Evaluation</span>
+                  </div>
+                )}
               </div>
+
               <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
                 {interview.role} Interview Report
               </h1>
               <p className="text-xs sm:text-sm text-slate-400">
-                Difficulty: <span className="font-semibold text-slate-200">{interview.difficulty}</span> • Completed on{" "}
+                Difficulty: <span className="font-semibold text-slate-200">{interview.difficulty}</span>
+                {interview.resumeFileName ? ` • File: ${interview.resumeFileName}` : ""} • Completed on{" "}
                 {new Date(interview.createdAt).toLocaleDateString(undefined, {
                   month: "long",
                   day: "numeric",
                   year: "numeric",
                 })}
               </p>
+
+              {interview.isResumeBased && interview.extractedSkills && interview.extractedSkills.length > 0 && (
+                <div className="pt-1 flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[11px] text-purple-400 font-semibold">Resume Skills Evaluated:</span>
+                  {interview.extractedSkills.map((sk, skIdx) => (
+                    <span
+                      key={skIdx}
+                      className="bg-purple-950/40 text-purple-200 border border-purple-500/20 px-2 py-0.5 rounded-md text-[10px] font-medium"
+                    >
+                      {sk}
+                    </span>
+                  ))}
+                </div>
+              )}
+
               <div className="pt-1">
                 <span className={`inline-block text-xs font-bold px-3 py-1 rounded-lg border ${readinessBadge.color}`}>
                   {readinessBadge.title}
@@ -165,16 +243,33 @@ export default function Report() {
         {/* AI Coach Comprehensive Feedback */}
         {interview.finalFeedback && (
           <div className="glass-panel rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-xl space-y-4">
-            <div className="flex items-center gap-2.5 text-indigo-400">
-              <div className="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
-                <FiCpu className="w-5 h-5 text-indigo-400" />
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 text-indigo-400">
+                <div className="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
+                  <FiCpu className="w-5 h-5 text-indigo-400" />
+                </div>
+                <div>
+                  <h2 className="font-extrabold text-base sm:text-lg text-white">
+                    AI Interview Coach Comprehensive Analysis
+                  </h2>
+                  <p className="text-xs text-slate-400">Key strengths & high-impact prep suggestions</p>
+                </div>
               </div>
-              <div>
-                <h2 className="font-extrabold text-base sm:text-lg text-white">
-                  AI Interview Coach Comprehensive Analysis
-                </h2>
-                <p className="text-xs text-slate-400">Key strengths & high-impact prep suggestions</p>
-              </div>
+
+              {(interview.isResumeBased || interview.mode === "open-ended") && (
+                <button
+                  onClick={() => toggleReportSpeech(interview.finalFeedback)}
+                  className={`flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-xl border transition-all ${
+                    isSpeaking
+                      ? "bg-rose-500/20 text-rose-300 border-rose-500/50 animate-pulse shadow-glow-rose"
+                      : "bg-slate-900 text-slate-300 border-slate-800 hover:border-indigo-500/40 hover:text-indigo-300"
+                  }`}
+                  title="Listen to full AI analysis out loud"
+                >
+                  {isSpeaking ? <FiVolumeX className="w-4 h-4 text-rose-400" /> : <FiVolume2 className="w-4 h-4 text-indigo-400" />}
+                  <span>{isSpeaking ? "Stop Voice" : "Listen to Analysis"}</span>
+                </button>
+              )}
             </div>
 
             <div className="bg-slate-900/70 p-5 sm:p-6 rounded-2xl border border-slate-800 font-sans text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">
@@ -197,9 +292,10 @@ export default function Report() {
 
           <div className="space-y-4">
             {questions.map((q, idx) => {
-              const isCorrect = (q.score ?? 0) >= 7;
+              const isCorrect = (q.score ?? 0) >= 6;
+              const hasOptions = q.options && q.options.length > 0;
               const optionLetters = ["A", "B", "C", "D"];
-              const userPick = (q.userSelectedOption || (q.answer ? q.answer.charAt(0) : "")).toUpperCase();
+              const userPick = (q.userSelectedOption || "").toUpperCase();
               const correctPick = (q.correctOption || "A").toUpperCase();
 
               return (
@@ -222,7 +318,7 @@ export default function Report() {
                           }`}
                         >
                           {isCorrect ? <FiCheckCircle className="w-3.5 h-3.5" /> : <FiXCircle className="w-3.5 h-3.5" />}
-                          {isCorrect ? "Correct" : "Incorrect"}
+                          {isCorrect ? "Strong Answer" : "Needs Review"}
                         </span>
                       </div>
                       <h3 className="text-base sm:text-lg font-bold text-slate-100 pt-1">
@@ -241,8 +337,26 @@ export default function Report() {
                     </div>
                   </div>
 
-                  {/* 4 Options Display (if available) */}
-                  {q.options && q.options.length > 0 && (
+                  {/* Candidate Spoken/Written Answer for Open-Ended Questions */}
+                  {!hasOptions && (
+                    <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                          <FiUser className="w-3.5 h-3.5 text-sky-400" />
+                          Candidate Response:
+                        </span>
+                        <span className="text-[11px] text-slate-500 font-mono">
+                          {q.answer ? `${q.answer.trim().split(/\s+/).length} words` : "No answer"}
+                        </span>
+                      </div>
+                      <p className="text-sm text-slate-200 leading-relaxed italic bg-slate-950/70 p-3 rounded-lg border border-slate-800/80">
+                        "{q.answer || "No response provided"}"
+                      </p>
+                    </div>
+                  )}
+
+                  {/* 4 Options Display for Multiple Choice Questions */}
+                  {hasOptions && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
                       {q.options.slice(0, 4).map((opt, optIdx) => {
                         const letter = optionLetters[optIdx];
@@ -294,12 +408,12 @@ export default function Report() {
                   )}
 
                   {/* AI Feedback & Explanation */}
-                  <div className="bg-slate-900/70 p-4 rounded-xl border border-slate-800 text-xs sm:text-sm text-slate-300 space-y-1">
+                  <div className="bg-slate-900/70 p-4 rounded-xl border border-slate-800 text-xs sm:text-sm text-slate-300 space-y-1.5">
                     <p className="font-bold text-slate-200 flex items-center gap-1.5 text-xs text-indigo-400">
                       <FiCpu className="w-3.5 h-3.5" />
-                      AI Coach Explanation:
+                      AI Coach Evaluation & Concept Breakdown:
                     </p>
-                    <p className="leading-relaxed">{q.feedback || q.explanation || "No specific feedback."}</p>
+                    <p className="leading-relaxed whitespace-pre-wrap">{q.feedback || q.explanation || "No specific feedback."}</p>
                   </div>
                 </div>
               );

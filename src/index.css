@@ -3,8 +3,93 @@
 @tailwind utilities;
 
 @layer base {
+  :root,
+  [data-theme="cosmic"] {
+    --app-bg: #070913;
+    --app-gradient: 
+      radial-gradient(ellipse 90% 55% at 50% -12%, rgba(99, 102, 241, 0.28), transparent 70%),
+      radial-gradient(circle 700px at 90% 25%, rgba(168, 85, 247, 0.16), transparent 68%),
+      radial-gradient(circle 650px at 10% 75%, rgba(14, 165, 233, 0.14), transparent 68%),
+      linear-gradient(180deg, #070913 0%, #0a0e1f 50%, #05070e 100%);
+    --panel-bg: rgba(15, 23, 42, 0.72);
+    --panel-border: rgba(255, 255, 255, 0.08);
+    --card-bg: rgba(15, 23, 42, 0.65);
+    --theme-accent: #6366f1;
+  }
+
+  [data-theme="sapphire"] {
+    --app-bg: #030a16;
+    --app-gradient: 
+      radial-gradient(ellipse 90% 55% at 50% -12%, rgba(14, 165, 233, 0.28), transparent 70%),
+      radial-gradient(circle 700px at 90% 25%, rgba(59, 130, 246, 0.18), transparent 68%),
+      radial-gradient(circle 650px at 10% 75%, rgba(99, 102, 241, 0.15), transparent 68%),
+      linear-gradient(180deg, #030a16 0%, #061630 50%, #020710 100%);
+    --panel-bg: rgba(7, 24, 48, 0.75);
+    --panel-border: rgba(56, 189, 248, 0.14);
+    --card-bg: rgba(6, 20, 42, 0.65);
+    --theme-accent: #0ea5e9;
+  }
+
+  [data-theme="violet"] {
+    --app-bg: #0b0716;
+    --app-gradient: 
+      radial-gradient(ellipse 90% 55% at 50% -12%, rgba(168, 85, 247, 0.3), transparent 70%),
+      radial-gradient(circle 700px at 90% 25%, rgba(236, 72, 153, 0.18), transparent 68%),
+      radial-gradient(circle 650px at 10% 75%, rgba(139, 92, 246, 0.16), transparent 68%),
+      linear-gradient(180deg, #0b0716 0%, #170d2f 50%, #070410 100%);
+    --panel-bg: rgba(23, 13, 40, 0.75);
+    --panel-border: rgba(192, 132, 252, 0.14);
+    --card-bg: rgba(19, 10, 34, 0.65);
+    --theme-accent: #a855f7;
+  }
+
+  [data-theme="emerald"] {
+    --app-bg: #030d0d;
+    --app-gradient: 
+      radial-gradient(ellipse 90% 55% at 50% -12%, rgba(16, 185, 129, 0.26), transparent 70%),
+      radial-gradient(circle 700px at 90% 25%, rgba(20, 184, 166, 0.18), transparent 68%),
+      radial-gradient(circle 650px at 10% 75%, rgba(6, 182, 212, 0.14), transparent 68%),
+      linear-gradient(180deg, #030d0d 0%, #071f1e 50%, #020808 100%);
+    --panel-bg: rgba(7, 28, 27, 0.75);
+    --panel-border: rgba(52, 211, 153, 0.14);
+    --card-bg: rgba(5, 22, 21, 0.65);
+    --theme-accent: #10b981;
+  }
+
+  [data-theme="noir"] {
+    --app-bg: #09090b;
+    --app-gradient: 
+      radial-gradient(ellipse 90% 55% at 50% -12%, rgba(255, 255, 255, 0.08), transparent 70%),
+      radial-gradient(circle 700px at 90% 25%, rgba(255, 255, 255, 0.05), transparent 68%),
+      radial-gradient(circle 650px at 10% 75%, rgba(255, 255, 255, 0.03), transparent 68%),
+      linear-gradient(180deg, #09090b 0%, #141419 50%, #050507 100%);
+    --panel-bg: rgba(24, 24, 27, 0.78);
+    --panel-border: rgba(255, 255, 255, 0.12);
+    --card-bg: rgba(20, 20, 24, 0.7);
+    --theme-accent: #f8fafc;
+  }
+
   body {
-    @apply bg-slate-950 text-slate-100 font-sans;
+    background-color: var(--app-bg, #070913);
+    background-image: var(--app-gradient);
+    background-attachment: fixed;
+    color: #f1f5f9;
+    font-family: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    transition: background-color 0.4s ease;
+  }
+
+  /* Atmospheric Micro-Grid Layer */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-size: 48px 48px;
+    background-image: 
+      linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    pointer-events: none;
+    z-index: 0;
   }
 }
 
@@ -15,7 +100,7 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #0f172a;
+  background: rgba(10, 15, 28, 0.8);
 }
 
 ::-webkit-scrollbar-thumb {
@@ -29,22 +114,23 @@
 
 /* Glassmorphism helpers */
 .glass-panel {
-  background: rgba(30, 41, 59, 0.7);
+  background: var(--panel-bg, rgba(15, 23, 42, 0.72));
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.08));
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
 }
 
 .glass-card {
-  background: rgba(15, 23, 42, 0.75);
+  background: var(--card-bg, rgba(15, 23, 42, 0.65));
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.06));
 }
 
 .glass-input {
   background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.12));
 }
 
 .gradient-text {

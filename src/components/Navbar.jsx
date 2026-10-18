@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { FiLogOut, FiZap, FiGrid, FiUser, FiHome } from "react-icons/fi";
+import ThemeSelector from "./ThemeSelector";
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -55,7 +56,9 @@ export default function Navbar() {
         </div>
 
         {/* User profile & Actions */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <ThemeSelector />
+
           <div className="flex items-center gap-2.5 pl-3 pr-2 py-1.5 rounded-xl bg-slate-900/80 border border-slate-800">
             <div className="w-7 h-7 rounded-lg bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 flex items-center justify-center text-xs font-bold">
               {getInitials(user?.name)}
